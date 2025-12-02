@@ -70,7 +70,7 @@ export function CalendarProvider({ children, users, events }: { children: React.
         workingHours,
         setWorkingHours,
         // If you go to the refetch approach, you can remove the localEvents and pass the events directly
-        events,
+        events: localEvents,
         setLocalEvents,
       }}
     >

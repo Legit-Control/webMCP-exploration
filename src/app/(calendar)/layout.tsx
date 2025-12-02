@@ -4,6 +4,7 @@
 import { Settings } from "lucide-react";
 
 import { CalendarProvider } from "@/calendar/contexts/calendar-context";
+import { CalendarMCPTools } from "@/calendar/mcp-tools/CalendarMCPTools";
 
 import { ChangeBadgeVariantInput } from "@/calendar/components/change-badge-variant-input";
 import { ChangeVisibleHoursInput } from "@/calendar/components/change-visible-hours-input";
@@ -56,15 +57,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     rollback(lastCommit.oid);
   };
 
-  // @ts-ignore
-  window.addNewTestEvent = addNewTestEvent;
-  // @ts-ignore
-  window.rollbackLastCommit = rollbackLastCommit;
+  useEffect(() => {
+    // @ts-ignore
+    window.addNewTestEvent = addNewTestEvent;
+    // @ts-ignore
+    window.rollbackLastCommit = rollbackLastCommit;
+  }, [addNewTestEvent, rollbackLastCommit]);
 
   return (
     <>
       {users && users.length > 0 && events && events.length > 0 ? (
         <CalendarProvider users={JSON.parse(users || "[]") as IUser[]} events={JSON.parse(events || "[]") as IEvent[]}>
+          {/* Register MCP tools - must be inside CalendarProvider */}
+          <CalendarMCPTools />
           <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-8 py-4">
             {children}
 

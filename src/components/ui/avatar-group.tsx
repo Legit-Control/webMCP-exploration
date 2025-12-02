@@ -2,15 +2,20 @@ import { cloneElement, Children, forwardRef, useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 
-import type { ElementRef, HTMLAttributes, ReactElement } from "react";
+import type { ElementRef, HTMLAttributes, ReactElement, CSSProperties } from "react";
 
 // ================================== //
 
 type TAvatarGroupRef = ElementRef<"div">;
 type TAvatarGroupProps = HTMLAttributes<HTMLDivElement> & { max?: number; spacing?: number };
 
+interface AvatarChildProps {
+  className?: string;
+  style?: CSSProperties;
+}
+
 const AvatarGroup = forwardRef<TAvatarGroupRef, TAvatarGroupProps>(({ className, children, max = 1, spacing = 10, ...props }, ref) => {
-  const avatarItems = Children.toArray(children) as ReactElement[];
+  const avatarItems = Children.toArray(children) as ReactElement<AvatarChildProps>[];
 
   const renderContent = useMemo(() => {
     return (
@@ -19,7 +24,7 @@ const AvatarGroup = forwardRef<TAvatarGroupRef, TAvatarGroupProps>(({ className,
           return cloneElement(child, {
             className: cn(child.props.className, "border-2 border-background"),
             style: { marginLeft: index === 0 ? 0 : -spacing, ...child.props.style },
-          });
+          } as AvatarChildProps);
         })}
 
         {avatarItems.length > max && (
