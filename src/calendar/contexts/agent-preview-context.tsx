@@ -42,8 +42,8 @@ interface AgentPreviewState {
  * Agent preview context actions
  */
 interface AgentPreviewActions {
-  /** Start previewing an agent's changes */
-  startPreview: (agentId: string) => Promise<void>;
+  /** Start previewing an agent's changes. Returns the computed pending changes. */
+  startPreview: (agentId: string) => Promise<PendingChanges>;
   /** Stop previewing and return to main branch view */
   stopPreview: () => void;
   /** Accept all pending changes (merge to main) */
@@ -100,14 +100,14 @@ export function AgentPreviewProvider({ children }: AgentPreviewProviderProps) {
   );
 
   /**
-   * Compute diff between main/anonymous branch and agent branch
+   * Compute diff between main branch and agent branch
    */
   const computeDiff = useCallback(
     async (agentBranch: string): Promise<PendingChanges> => {
-      // Try "anonymous" first (Legit default), then "main"
-      let mainEvents = await readBranchEvents("anonymous");
+      // Try "main" first, then "anonymous" for backwards compatibility
+      let mainEvents = await readBranchEvents("main");
       if (mainEvents.length === 0) {
-        mainEvents = await readBranchEvents("main");
+        mainEvents = await readBranchEvents("anonymous");
       }
       const agentEvents = await readBranchEvents(agentBranch);
 
@@ -137,19 +137,73 @@ export function AgentPreviewProvider({ children }: AgentPreviewProviderProps) {
   );
 
   /**
-   * Start previewing an agent's changes
+   * Find the actual branch name for an agent by searching for matching branches
+   */
+  const findAgentBranch = useCallback(
+    async (agentId: string): Promise<string | null> => {
+      if (!legitFs) return null;
+
+      // If it's already a full branch name, use it directly
+      if (agentId.startsWith("agent-")) {
+        return agentId;
+      }
+
+      try {
+        // List all branches and find one that ends with the agentId
+        const branchesDir = "/.legit/branches";
+        const entries = await legitFs.promises.readdir(branchesDir);
+
+        // Look for a branch matching pattern agent-*-{agentId}
+        for (const entry of entries) {
+          const branchName = String(entry);
+          if (branchName.startsWith("agent-") && branchName.endsWith(`-${agentId}`)) {
+            return branchName;
+          }
+        }
+
+        // Fallback: try common patterns
+        const fallbackPatterns = [
+          `agent-claude-${agentId}`,
+          `agent-opus-${agentId}`,
+          `agent-gpt4-${agentId}`,
+          `agent-gemini-${agentId}`,
+        ];
+
+        for (const pattern of fallbackPatterns) {
+          try {
+            const path = `/.legit/branches/${pattern}${CALENDAR_PATHS.EVENTS}`;
+            await legitFs.promises.readFile(path, "utf8");
+            return pattern; // Branch exists
+          } catch {
+            // Branch doesn't exist, try next
+          }
+        }
+
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    [legitFs]
+  );
+
+  /**
+   * Start previewing an agent's changes.
+   * Returns the computed pending changes so callers can use them immediately
+   * without waiting for React state to update.
    */
   const startPreview = useCallback(
-    async (agentId: string) => {
+    async (agentId: string): Promise<PendingChanges> => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        // Agent branch names follow pattern: agent-{modelName}-{agentId}
-        // If agentId already contains the full branch name pattern, use it directly
-        // Otherwise, assume it's just the agentId and use default model "claude"
-        const agentBranch = agentId.startsWith("agent-")
-          ? agentId
-          : `agent-claude-${agentId}`;
+        // Find the actual branch name
+        const agentBranch = await findAgentBranch(agentId);
+
+        if (!agentBranch) {
+          throw new Error(`Could not find branch for agent "${agentId}"`);
+        }
+
         const pendingChanges = await computeDiff(agentBranch);
 
         setState({
@@ -160,15 +214,20 @@ export function AgentPreviewProvider({ children }: AgentPreviewProviderProps) {
           loading: false,
           error: null,
         });
+
+        // Return the computed changes so callers can use them immediately
+        return pendingChanges;
       } catch (err) {
         setState((prev) => ({
           ...prev,
           loading: false,
           error: err instanceof Error ? err.message : "Failed to load preview",
         }));
+        // Re-throw so callers can handle the error
+        throw err;
       }
     },
-    [computeDiff]
+    [computeDiff, findAgentBranch]
   );
 
   /**

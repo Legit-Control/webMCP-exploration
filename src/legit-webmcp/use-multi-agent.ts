@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useLegitContext } from "@legit-sdk/react";
 import type { AgentSession, AgentPreview } from "@/legit-webmcp/types";
 import { CALENDAR_PATHS } from "@/legit-webmcp/types";
+import type { IEvent } from "@/calendar/interfaces";
 
 // =============================================================================
 // LocalStorage Keys
@@ -12,11 +13,38 @@ import { CALENDAR_PATHS } from "@/legit-webmcp/types";
 const STORAGE_KEYS = {
   SESSIONS: "legit-agent-sessions",
   DEFAULT_BRANCH: "legit-default-branch",
+  COMMIT_HISTORY: "legit-commit-history",
 } as const;
 
 // =============================================================================
 // Types
 // =============================================================================
+
+/** A record of a commit in our custom history */
+export interface CommitRecord {
+  /** Unique ID for this commit */
+  id: string;
+  /** When the commit was made */
+  timestamp: Date;
+  /** Agent ID that made the commit */
+  agentId: string;
+  /** Custom commit message */
+  message: string;
+  /** Summary of changes */
+  summary: {
+    eventsAdded: number;
+    eventsRemoved: number;
+    eventsModified: number;
+  };
+}
+
+/** Options for merging agent changes */
+export interface MergeOptions {
+  /** Custom commit message */
+  message?: string;
+  /** Agent ID making the commit (for authorship tracking) */
+  agentId?: string;
+}
 
 /** Result of a merge operation */
 export interface MergeResult {
@@ -24,6 +52,8 @@ export interface MergeResult {
   success: boolean;
   /** Whether changes were actually merged (false if no changes) */
   merged: boolean;
+  /** The commit record if successful */
+  commit?: CommitRecord;
 }
 
 /** Return type for the useMultiAgentCoordination hook */
@@ -50,9 +80,16 @@ export interface UseMultiAgentReturn {
    * Merge an agent's changes back to the default branch.
    * Can accept either an agentId or a branch name directly.
    * @param agentIdOrBranch - Agent ID or branch name to merge
-   * @returns Result indicating success and whether changes were merged
+   * @param options - Optional merge options (message, agentId for authorship)
+   * @returns Result indicating success, whether changes were merged, and commit record
    */
-  mergeAgentChanges: (agentIdOrBranch: string) => Promise<MergeResult>;
+  mergeAgentChanges: (agentIdOrBranch: string, options?: MergeOptions) => Promise<MergeResult>;
+
+  /**
+   * Get the commit history for display in UI.
+   * @returns Array of commit records, most recent first
+   */
+  getCommitHistory: () => CommitRecord[];
 
   /**
    * Preview what changes an agent has pending compared to main.
@@ -91,8 +128,8 @@ export interface UseMultiAgentReturn {
 // Constants
 // =============================================================================
 
-/** Default branch name used when Legit isn't initialized */
-const DEFAULT_BRANCH = "anonymous";
+/** Default branch name - using "main" for consistency */
+const DEFAULT_BRANCH = "main";
 
 // =============================================================================
 // Helper Functions
@@ -220,12 +257,88 @@ function saveStoredDefaultBranch(branch: string): void {
 }
 
 /**
- * Compare two arrays of events and return the diff.
+ * Load commit history from localStorage.
  */
-function compareEvents(
-  baseEvents: Array<{ id: number }>,
-  agentEvents: Array<{ id: number }>
-): { added: unknown[]; removed: unknown[]; modified: unknown[] } {
+function loadStoredCommitHistory(): CommitRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.COMMIT_HISTORY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored) as Array<{
+      id: string;
+      timestamp: string;
+      agentId: string;
+      message: string;
+      summary: {
+        eventsAdded: number;
+        eventsRemoved: number;
+        eventsModified: number;
+      };
+    }>;
+    return parsed.map(c => ({
+      ...c,
+      timestamp: new Date(c.timestamp),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save commit history to localStorage.
+ */
+function saveStoredCommitHistory(history: CommitRecord[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const serialized = history.map(c => ({
+      ...c,
+      timestamp: c.timestamp.toISOString(),
+    }));
+    localStorage.setItem(STORAGE_KEYS.COMMIT_HISTORY, JSON.stringify(serialized));
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+/**
+ * Add a commit to history.
+ */
+function addCommitToHistory(commit: CommitRecord): void {
+  const history = loadStoredCommitHistory();
+  // Add new commit at the beginning (most recent first)
+  history.unshift(commit);
+  // Keep only the last 100 commits to avoid localStorage bloat
+  const trimmed = history.slice(0, 100);
+  saveStoredCommitHistory(trimmed);
+}
+
+/**
+ * Generate a unique commit ID.
+ */
+function generateCommitId(): string {
+  return `commit-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/**
+ * Result of comparing two event arrays.
+ */
+interface EventDiff {
+  /** Events that exist in agent but not in base */
+  added: IEvent[];
+  /** Events that exist in base but not in agent */
+  removed: IEvent[];
+  /** Events that exist in both but have different content */
+  modified: IEvent[];
+}
+
+/**
+ * Compare two arrays of events and return the diff.
+ *
+ * @param baseEvents - Events from the base/main branch
+ * @param agentEvents - Events from the agent branch
+ * @returns Object containing added, removed, and modified events
+ */
+function compareEvents(baseEvents: IEvent[], agentEvents: IEvent[]): EventDiff {
   const baseIds = new Set(baseEvents.map((e) => e.id));
   const agentIds = new Set(agentEvents.map((e) => e.id));
 
@@ -315,9 +428,17 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
   // On mount, sync current branch from Legit
   useEffect(() => {
     if (!legitFs) return;
+
+    let mounted = true;
     legitFs.getCurrentBranch().then((branch) => {
-      setCurrentBranch(branch);
+      if (mounted) {
+        setCurrentBranch(branch);
+      }
     });
+
+    return () => {
+      mounted = false;
+    };
   }, [legitFs]);
 
   /**
@@ -406,7 +527,9 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
 
         return branchName;
       } catch (error) {
-        throw error;
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        throw new Error(`Failed to create agent session: ${message}`);
       }
     },
     [legitFs, activeSessions.length]
@@ -435,15 +558,15 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
               `/.legit/branches/${baseBranch}${CALENDAR_PATHS.EVENTS}`,
               "utf8"
             )
-            .then((data) => JSON.parse(data as string) as Array<{ id: number }>)
-            .catch(() => [] as Array<{ id: number }>),
+            .then((data) => JSON.parse(data as string) as IEvent[])
+            .catch(() => [] as IEvent[]),
           legitFs.promises
             .readFile(
               `/.legit/branches/${agentBranch}${CALENDAR_PATHS.EVENTS}`,
               "utf8"
             )
-            .then((data) => JSON.parse(data as string) as Array<{ id: number }>)
-            .catch(() => [] as Array<{ id: number }>),
+            .then((data) => JSON.parse(data as string) as IEvent[])
+            .catch(() => [] as IEvent[]),
         ]);
 
         const { added, removed, modified } = compareEvents(
@@ -474,9 +597,10 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
   /**
    * Merge agent's changes back to the default branch.
    * Now supports both agent ID and branch name as input.
+   * Also tracks commit history with custom messages and authorship.
    */
   const mergeAgentChanges = useCallback(
-    async (agentIdOrBranch: string): Promise<MergeResult> => {
+    async (agentIdOrBranch: string, options?: MergeOptions): Promise<MergeResult> => {
       if (!legitFs) {
         return { success: false, merged: false };
       }
@@ -488,20 +612,48 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
         // Merge into the default branch (not current, which might be agent's own branch)
         const targetBranch = defaultBranch;
 
-        // Simple merge strategy: copy agent's files to default branch
-        const agentEventsData = await legitFs.promises.readFile(
-          `/.legit/branches/${agentBranch}${CALENDAR_PATHS.EVENTS}`,
-          "utf8"
-        );
+        // First, compute the diff for the commit record
+        const [baseEvents, agentEvents] = await Promise.all([
+          legitFs.promises
+            .readFile(`/.legit/branches/${targetBranch}${CALENDAR_PATHS.EVENTS}`, "utf8")
+            .then((data) => JSON.parse(data as string) as IEvent[])
+            .catch(() => [] as IEvent[]),
+          legitFs.promises
+            .readFile(`/.legit/branches/${agentBranch}${CALENDAR_PATHS.EVENTS}`, "utf8")
+            .then((data) => JSON.parse(data as string) as IEvent[])
+            .catch(() => [] as IEvent[]),
+        ]);
 
+        const { added, removed, modified } = compareEvents(baseEvents, agentEvents);
+
+        // Simple merge strategy: copy agent's files to default branch
         await legitFs.promises.writeFile(
           `/.legit/branches/${targetBranch}${CALENDAR_PATHS.EVENTS}`,
-          agentEventsData,
+          JSON.stringify(agentEvents, null, 2),
           "utf8"
         );
 
-        // Update agent's last activity if we have a session for them
+        // Determine the agent ID for authorship
         const session = activeSessions.find(s => s.branch === agentBranch);
+        const authorAgentId = options?.agentId || session?.agentId || parseAgentBranch(agentBranch)?.agentId || "unknown";
+
+        // Create commit record with custom message and authorship
+        const commitRecord: CommitRecord = {
+          id: generateCommitId(),
+          timestamp: new Date(),
+          agentId: authorAgentId,
+          message: options?.message || `Merged changes from ${authorAgentId}`,
+          summary: {
+            eventsAdded: added.length,
+            eventsRemoved: removed.length,
+            eventsModified: modified.length,
+          },
+        };
+
+        // Save to our custom commit history
+        addCommitToHistory(commitRecord);
+
+        // Update agent's last activity if we have a session for them
         if (session) {
           setActiveSessions((prev) =>
             prev.map((s) =>
@@ -510,7 +662,7 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
           );
         }
 
-        return { success: true, merged: true };
+        return { success: true, merged: true, commit: commitRecord };
       } catch {
         return { success: false, merged: false };
       }
@@ -557,6 +709,14 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
     return parsed?.agentId || null;
   }, [legitFs]);
 
+  /**
+   * Get the commit history for display in UI.
+   * Returns commits with custom messages and agent authorship.
+   */
+  const getCommitHistory = useCallback((): CommitRecord[] => {
+    return loadStoredCommitHistory();
+  }, []);
+
   // Memoize return value
   return useMemo(
     () => ({
@@ -570,6 +730,7 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
       switchToMain,
       findSession,
       getCurrentAgentId,
+      getCommitHistory,
     }),
     [
       activeSessions,
@@ -582,6 +743,7 @@ export function useMultiAgentCoordination(): UseMultiAgentReturn {
       switchToMain,
       findSession,
       getCurrentAgentId,
+      getCommitHistory,
     ]
   );
 }

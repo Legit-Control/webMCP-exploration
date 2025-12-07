@@ -5,6 +5,7 @@ import { useLegitContext } from "@legit-sdk/react";
 import { z } from "zod";
 import type { HistoryItem } from "@legit-sdk/core";
 import { CALENDAR_PATHS } from "@/legit-webmcp/types";
+import { useMultiAgentCoordination } from "@/legit-webmcp";
 
 // =============================================================================
 // Types
@@ -38,6 +39,7 @@ interface EventWithId {
  */
 export function useHistoryTools(): void {
   const { legitFs } = useLegitContext();
+  const { getCommitHistory } = useMultiAgentCoordination();
 
   // ---------------------------------------------------------------------------
   // Tool: Show change history
@@ -63,11 +65,19 @@ Each history entry can be used with calendar_undo to rollback to that state.`,
             position: z.number().describe("Position in history (0 = current)"),
             commitId: z.string().describe("Git commit hash"),
             message: z.string().describe("Commit message"),
-            author: z.string().describe("Author name"),
+            author: z.string().describe("Author name (agent ID if from agent commit)"),
             timestamp: z.string().describe("ISO timestamp"),
             canRollbackTo: z
               .boolean()
               .describe("Whether this commit can be rolled back to"),
+            changes: z
+              .object({
+                eventsAdded: z.number(),
+                eventsRemoved: z.number(),
+                eventsModified: z.number(),
+              })
+              .optional()
+              .describe("Change summary (if available from agent commit)"),
           })
         )
         .describe("History entries"),
@@ -93,16 +103,39 @@ Each history entry can be used with calendar_undo to rollback to that state.`,
         );
         const history: HistoryItem[] = JSON.parse(historyContent as string);
 
-        const entries = history.slice(0, limit).map((h, i) => ({
-          position: i,
-          commitId: h.oid,
-          message: h.message || "No message",
-          author: h.author?.name || "Unknown",
-          timestamp: h.author?.timestamp
-            ? new Date(h.author.timestamp * 1000).toISOString()
-            : "Unknown",
-          canRollbackTo: i > 0,
-        }));
+        // Get our custom commit history with agent messages and authors
+        const customHistory = getCommitHistory();
+
+        const entries = history.slice(0, limit).map((h, i) => {
+          // Try to match with custom commit history by timestamp proximity
+          // Custom commits are stored when mergeAgentChanges is called
+          const commitTimestamp = h.author?.timestamp
+            ? h.author.timestamp * 1000
+            : 0;
+
+          // Find a custom commit that was made within 5 seconds of this git commit
+          const matchingCustomCommit = customHistory.find((c) => {
+            const customTime = c.timestamp.getTime();
+            return Math.abs(customTime - commitTimestamp) < 5000;
+          });
+
+          return {
+            position: i,
+            commitId: h.oid,
+            // Use custom message if available, otherwise fall back to SDK message
+            message: matchingCustomCommit?.message || h.message || "No message",
+            // Use custom author (agent ID) if available, otherwise fall back to SDK author
+            author: matchingCustomCommit?.agentId || h.author?.name || "Unknown",
+            timestamp: h.author?.timestamp
+              ? new Date(h.author.timestamp * 1000).toISOString()
+              : "Unknown",
+            canRollbackTo: i > 0,
+            // Include change summary if available from custom history
+            ...(matchingCustomCommit?.summary && {
+              changes: matchingCustomCommit.summary,
+            }),
+          };
+        });
 
         return {
           currentBranch: branch,
@@ -112,6 +145,28 @@ Each history entry can be used with calendar_undo to rollback to that state.`,
           tip: "Use calendar_undo with a position number to rollback to that state.",
         };
       } catch {
+        // If no Legit history, try showing just our custom commit history
+        const customHistory = getCommitHistory();
+        if (customHistory.length > 0) {
+          const entries = customHistory.slice(0, limit).map((c, i) => ({
+            position: i,
+            commitId: c.id,
+            message: c.message,
+            author: c.agentId,
+            timestamp: c.timestamp.toISOString(),
+            canRollbackTo: false,
+            changes: c.summary,
+          }));
+
+          return {
+            currentBranch: "main",
+            totalEntries: customHistory.length,
+            entries,
+            message: `Found ${customHistory.length} agent commits. Showing ${entries.length} most recent.`,
+            tip: "These are commits made by AI agents through the sandbox system.",
+          };
+        }
+
         return {
           currentBranch: "unknown",
           entries: [],

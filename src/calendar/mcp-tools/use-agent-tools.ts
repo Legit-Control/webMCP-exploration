@@ -265,7 +265,11 @@ Use calendar_preview_changes first to review what will be committed.`,
         };
       }
 
-      const result = await mergeAgentChanges(targetAgentId);
+      // Pass custom message and agent ID for commit history tracking
+      const result = await mergeAgentChanges(targetAgentId, {
+        message,
+        agentId: targetAgentId,
+      });
 
       if (!result.success) {
         throw new Error("Failed to commit changes. There may be a conflict.");
@@ -277,9 +281,9 @@ Use calendar_preview_changes first to review what will be committed.`,
           ? `Committed: ${message}`
           : "Changes committed to main calendar successfully!",
         committed: {
-          eventsAdded: preview.summary?.eventsAdded || 0,
-          eventsRemoved: preview.summary?.eventsRemoved || 0,
-          eventsModified: preview.summary?.eventsModified || 0,
+          eventsAdded: result.commit?.summary.eventsAdded || preview.summary?.eventsAdded || 0,
+          eventsRemoved: result.commit?.summary.eventsRemoved || preview.summary?.eventsRemoved || 0,
+          eventsModified: result.commit?.summary.eventsModified || preview.summary?.eventsModified || 0,
         },
         tip: "Your changes are now visible to everyone.",
       };
@@ -355,11 +359,11 @@ Useful for coordination when multiple agents are making changes.`,
 
 This is an advanced tool for viewing what different agents have done.
 - Switch to an agent's branch to see their pending changes
-- Switch to "main" to see the shared calendar state`,
+- Switch to "main" or "default" to see the shared calendar state`,
     inputSchema: {
       branch: z
         .string()
-        .describe("Branch name to switch to ('main' or an agent branch name)"),
+        .describe("Branch name to switch to ('main', 'default', or an agent branch name)"),
     },
     outputSchema: {
       success: z.boolean().describe("Whether the switch succeeded"),
@@ -379,7 +383,8 @@ This is an advanced tool for viewing what different agents have done.
       destructiveHint: false,
     },
     handler: async ({ branch }) => {
-      if (branch === "main") {
+      // Handle "main" or "default" as alias for the default branch
+      if (branch === "main" || branch === "default") {
         await switchToMain();
         return {
           success: true,

@@ -10,7 +10,6 @@
     "turbo": "next dev --turbo"
   },
   "dependencies": {
-    "-": "^0.0.1",
     "@hookform/resolvers": "^5.0.1",
     "@legit-sdk/core": "^0.2.0",
     "@legit-sdk/react": "^0.2.0",
@@ -30,10 +29,10 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-switch": "^1.2.2",
     "@radix-ui/react-tooltip": "^1.2.3",
+    "@radix-ui/react-toast": "^1.2.6",
     "@vercel/analytics": "^1.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "D": "^1.0.0",
     "date-fns": "^3",
     "lucide-react": "^0.488.0",
     "memfs": "^4.51.1",

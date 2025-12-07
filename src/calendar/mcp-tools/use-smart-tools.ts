@@ -1,50 +1,51 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
 import { useWebMCP } from "@mcp-b/react-webmcp";
 import { z } from "zod";
 import { useCalendar } from "@/calendar/contexts/calendar-context";
 import type { IEvent } from "@/calendar/interfaces";
-import type { TEventColor, TCalendarView } from "@/calendar/types";
+import type { TEventColor } from "@/calendar/types";
 import {
   format,
   startOfDay,
   endOfDay,
   addHours,
-  areIntervalsOverlapping,
   parseISO,
-  eachDayOfInterval,
-  startOfWeek,
-  endOfWeek,
+  areIntervalsOverlapping,
 } from "date-fns";
 
-const VIEW_ROUTES: Record<TCalendarView, string> = {
-  day: "/day-view",
-  week: "/week-view",
-  month: "/month-view",
-  year: "/year-view",
-  agenda: "/agenda-view",
-};
-
 /**
- * Smart/high-level tools that perform multi-step actions
- * and navigate to show results to the user
+ * MCP tools for high-level calendar operations.
+ *
+ * These tools provide smart operations like scheduling meetings and finding
+ * free time slots. They work on the current branch (main or agent sandbox).
+ *
+ * ## Registered Tools
+ *
+ * - `calendar_schedule_meeting` - Create a new event with full details
+ * - `calendar_find_free_time` - Find available time slots for scheduling
+ *
+ * @example
+ * ```tsx
+ * function CalendarMCPTools() {
+ *   useSmartTools();
+ *   // Tools are now registered and available to AI agents
+ * }
+ * ```
  */
-export function useSmartTools() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { events, setLocalEvents, users, selectedDate, setSelectedDate } =
-    useCalendar();
+export function useSmartTools(): void {
+  const { events, setLocalEvents, users } = useCalendar();
 
   // Tool: Schedule a meeting - THE primary way to create events
   useWebMCP({
     name: "calendar_schedule_meeting",
-    description: `Create a new calendar event and navigate to show it. This is the PRIMARY way to create events.
-
-The view automatically navigates to show the created event so the user can see it.
+    description: `Create a new calendar event. This is the PRIMARY way to create events.
 
 Example: Schedule a 1-hour meeting tomorrow at 2pm:
-{ "title": "Team Sync", "date": "2025-12-08", "startTime": "14:00" }`,
+{ "title": "Team Sync", "date": "2025-12-08", "startTime": "14:00", "durationMinutes": 60 }
+
+After creating events, use calendar_commit_changes to save them to the main calendar,
+or use calendar_show_preview to show the user what you've created.`,
     inputSchema: {
       title: z.string().min(1).describe("Meeting title"),
       description: z
@@ -68,6 +69,21 @@ Example: Schedule a 1-hour meeting tomorrow at 2pm:
         .string()
         .optional()
         .describe("User ID to assign (uses first user if not specified). Get IDs from calendar_get_state."),
+    },
+    outputSchema: {
+      success: z.boolean().describe("Whether the event was created"),
+      message: z.string().describe("Human-readable result message"),
+      event: z
+        .object({
+          id: z.number(),
+          title: z.string(),
+          startDate: z.string(),
+          endDate: z.string(),
+          color: z.string(),
+          user: z.string(),
+        })
+        .describe("The created event"),
+      tip: z.string().optional().describe("Helpful next step"),
     },
     annotations: {
       readOnlyHint: false,
@@ -112,16 +128,9 @@ Example: Schedule a 1-hour meeting tomorrow at 2pm:
 
       setLocalEvents((prev) => [...prev, newEvent]);
 
-      // Navigate to the date and appropriate view
-      setSelectedDate(startDate);
-
-      // Determine best view based on duration
-      const bestView = durationMinutes <= 240 ? "day" : "week";
-      router.push(VIEW_ROUTES[bestView]);
-
       return {
         success: true,
-        message: `Created "${title}" on ${format(startDate, "EEEE, MMMM d, yyyy")} at ${format(startDate, "h:mm a")} for ${durationMinutes} minutes. Navigated to ${bestView} view.`,
+        message: `Created "${title}" on ${format(startDate, "EEEE, MMMM d, yyyy")} at ${format(startDate, "h:mm a")} for ${durationMinutes} minutes.`,
         event: {
           id: newEvent.id,
           title: newEvent.title,
@@ -130,16 +139,18 @@ Example: Schedule a 1-hour meeting tomorrow at 2pm:
           color: newEvent.color,
           user: newEvent.user.name,
         },
-        navigatedTo: bestView,
+        tip: "Use calendar_show_preview to show users the new event, or calendar_commit_changes to save it.",
       };
     },
   });
 
-  // Tool: Find free time slots
+  // Tool: Find free time slots - essential for scheduling
   useWebMCP({
     name: "calendar_find_free_time",
-    description:
-      "Find available time slots on a given day. Useful before scheduling meetings. Navigates to day view to show the day.",
+    description: `Find available time slots on a given day. Use this BEFORE scheduling to avoid conflicts.
+
+Returns a list of free time slots that meet the minimum duration requirement.
+Checks against all events on the current branch (main or agent sandbox).`,
     inputSchema: {
       date: z.string().describe("Date to check (YYYY-MM-DD format, e.g., '2025-12-08')"),
       durationMinutes: z.coerce
@@ -149,11 +160,26 @@ Example: Schedule a 1-hour meeting tomorrow at 2pm:
       workingHoursOnly: z.coerce
         .boolean()
         .default(true)
-        .describe("Only show slots during working hours 9-17 (default: true)"),
+        .describe("Only show slots during working hours 9am-5pm (default: true)"),
       userId: z
         .string()
         .optional()
-        .describe("Filter by specific user's availability"),
+        .describe("Check availability for a specific user only"),
+    },
+    outputSchema: {
+      date: z.string().describe("The date that was checked"),
+      freeSlots: z
+        .array(
+          z.object({
+            start: z.string().describe("Start time (HH:MM)"),
+            end: z.string().describe("End time (HH:MM)"),
+            durationMinutes: z.number().describe("Duration in minutes"),
+          })
+        )
+        .describe("Available time slots"),
+      totalFreeMinutes: z.number().describe("Total free time in minutes"),
+      existingEventsCount: z.number().describe("Number of existing events on this day"),
+      message: z.string().describe("Human-readable summary"),
     },
     annotations: {
       readOnlyHint: true,
@@ -233,10 +259,6 @@ Example: Schedule a 1-hour meeting tomorrow at 2pm:
         }
       }
 
-      // Navigate to day view to show the day
-      setSelectedDate(dayStart);
-      router.push(VIEW_ROUTES.day);
-
       return {
         date: format(dayStart, "EEEE, MMMM d, yyyy"),
         freeSlots,
@@ -244,201 +266,8 @@ Example: Schedule a 1-hour meeting tomorrow at 2pm:
         existingEventsCount: dayEvents.length,
         message:
           freeSlots.length > 0
-            ? `Found ${freeSlots.length} free slot(s) on ${format(dayStart, "MMM d")}. Navigated to day view.`
-            : `No free slots of ${durationMinutes}+ minutes available.`,
-        navigatedTo: "day",
-      };
-    },
-  });
-
-  // Tool: Show day summary with navigation
-  useWebMCP({
-    name: "calendar_show_day",
-    description:
-      "Navigate to a specific day and show a summary of events. Use this when the user asks 'what's on my calendar for [date]'.",
-    inputSchema: {
-      date: z
-        .string()
-        .optional()
-        .describe("Date to show (YYYY-MM-DD). Defaults to today."),
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      destructiveHint: false,
-    },
-    handler: async ({ date }) => {
-      const targetDate = date ? parseISO(date) : new Date();
-      const dayStart = startOfDay(targetDate);
-      const dayEnd = endOfDay(targetDate);
-
-      // Get events for this day
-      const dayEvents = events
-        .filter((e) => {
-          const eventStart = parseISO(e.startDate);
-          const eventEnd = parseISO(e.endDate);
-          return areIntervalsOverlapping(
-            { start: eventStart, end: eventEnd },
-            { start: dayStart, end: dayEnd }
-          );
-        })
-        .sort(
-          (a, b) =>
-            parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()
-        );
-
-      // Navigate to day view
-      setSelectedDate(targetDate);
-      router.push(VIEW_ROUTES.day);
-
-      return {
-        date: format(targetDate, "EEEE, MMMM d, yyyy"),
-        eventCount: dayEvents.length,
-        events: dayEvents.map((e) => ({
-          id: e.id,
-          title: e.title,
-          time: `${format(parseISO(e.startDate), "h:mm a")} - ${format(parseISO(e.endDate), "h:mm a")}`,
-          user: e.user.name,
-          color: e.color,
-        })),
-        message: dayEvents.length > 0
-          ? `${format(targetDate, "EEEE, MMMM d")} has ${dayEvents.length} event(s).`
-          : `${format(targetDate, "EEEE, MMMM d")} is clear - no events scheduled.`,
-        navigatedTo: "day",
-      };
-    },
-  });
-
-  // Tool: Show week overview with navigation
-  useWebMCP({
-    name: "calendar_show_week",
-    description:
-      "Navigate to a week view and show an overview of all events that week. Use this for weekly planning.",
-    inputSchema: {
-      date: z
-        .string()
-        .optional()
-        .describe("Any date within the week to show (YYYY-MM-DD). Defaults to current week."),
-    },
-    annotations: {
-      readOnlyHint: true,
-      idempotentHint: true,
-      destructiveHint: false,
-    },
-    handler: async ({ date }) => {
-      const targetDate = date ? parseISO(date) : new Date();
-      const weekStart = startOfWeek(targetDate, { weekStartsOn: 0 });
-      const weekEnd = endOfWeek(targetDate, { weekStartsOn: 0 });
-
-      // Get events for this week
-      const weekEvents = events
-        .filter((e) => {
-          const eventStart = parseISO(e.startDate);
-          const eventEnd = parseISO(e.endDate);
-          return areIntervalsOverlapping(
-            { start: eventStart, end: eventEnd },
-            { start: weekStart, end: weekEnd }
-          );
-        })
-        .sort(
-          (a, b) =>
-            parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()
-        );
-
-      // Group by day
-      const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
-      const eventsByDay = days.map((day) => {
-        const dayStart = startOfDay(day);
-        const dayEnd = endOfDay(day);
-        const dayEvents = weekEvents.filter((e) => {
-          const eventStart = parseISO(e.startDate);
-          return eventStart >= dayStart && eventStart <= dayEnd;
-        });
-        return {
-          day: format(day, "EEE, MMM d"),
-          count: dayEvents.length,
-          events: dayEvents.map((e) => e.title).slice(0, 3),
-        };
-      });
-
-      // Navigate to week view
-      setSelectedDate(targetDate);
-      router.push(VIEW_ROUTES.week);
-
-      return {
-        weekRange: `${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`,
-        totalEvents: weekEvents.length,
-        byDay: eventsByDay,
-        message: `Week of ${format(weekStart, "MMM d")} has ${weekEvents.length} event(s).`,
-        navigatedTo: "week",
-      };
-    },
-  });
-
-  // Tool: Quick reschedule - move an event to a new time
-  useWebMCP({
-    name: "calendar_reschedule_event",
-    description:
-      "Move an existing event to a new date/time and navigate to show the change. Keeps the original duration by default.",
-    inputSchema: {
-      eventId: z.coerce.number().describe("ID of the event to reschedule (get from calendar_list_events)"),
-      newDate: z.string().describe("New date (YYYY-MM-DD format, e.g., '2025-12-10')"),
-      newStartTime: z
-        .string()
-        .describe("New start time in 24h format (HH:MM, e.g., '14:00')"),
-      keepDuration: z.coerce
-        .boolean()
-        .default(true)
-        .describe("Keep the original duration (default: true)"),
-    },
-    annotations: {
-      readOnlyHint: false,
-      idempotentHint: true,
-      destructiveHint: false,
-    },
-    handler: async ({ eventId, newDate, newStartTime, keepDuration }) => {
-      const event = events.find((e) => e.id === eventId);
-      if (!event) {
-        throw new Error(`Event with ID ${eventId} not found. Use calendar_list_events to see available events.`);
-      }
-
-      const originalStart = parseISO(event.startDate);
-      const originalEnd = parseISO(event.endDate);
-      const originalDuration = originalEnd.getTime() - originalStart.getTime();
-
-      const newStart = new Date(`${newDate}T${newStartTime}:00`);
-      if (isNaN(newStart.getTime())) {
-        throw new Error(`Invalid date/time: "${newDate}T${newStartTime}". Use YYYY-MM-DD and HH:MM format.`);
-      }
-
-      const newEnd = keepDuration
-        ? new Date(newStart.getTime() + originalDuration)
-        : addHours(newStart, 1);
-
-      const updatedEvent: IEvent = {
-        ...event,
-        startDate: newStart.toISOString(),
-        endDate: newEnd.toISOString(),
-      };
-
-      setLocalEvents((prev) =>
-        prev.map((e) => (e.id === eventId ? updatedEvent : e))
-      );
-
-      // Navigate to show the change
-      setSelectedDate(newStart);
-      router.push(VIEW_ROUTES.day);
-
-      return {
-        success: true,
-        message: `Rescheduled "${event.title}" from ${format(originalStart, "MMM d 'at' h:mm a")} to ${format(newStart, "MMM d 'at' h:mm a")}. Navigated to day view.`,
-        event: {
-          id: updatedEvent.id,
-          title: updatedEvent.title,
-          oldTime: `${format(originalStart, "MMM d, h:mm a")}`,
-          newTime: `${format(newStart, "MMM d, h:mm a")}`,
-        },
-        navigatedTo: "day",
+            ? `Found ${freeSlots.length} free slot(s) on ${format(dayStart, "MMM d")} with ${durationMinutes}+ minutes available.`
+            : `No free slots of ${durationMinutes}+ minutes available on ${format(dayStart, "MMM d")}.`,
       };
     },
   });

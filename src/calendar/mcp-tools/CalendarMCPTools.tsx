@@ -1,61 +1,66 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useNavigationTools } from "./use-navigation-tools";
 import { useEventTools } from "./use-event-tools";
 import { useFilterTools } from "./use-filter-tools";
-import { useSettingsTools } from "./use-settings-tools";
 import { useSmartTools } from "./use-smart-tools";
-import { useYearViewTools } from "./use-year-view-tools";
-import { useDayViewTools } from "./use-day-view-tools";
 import { useHistoryTools } from "./use-history-tools";
 import { useAgentTools } from "./use-agent-tools";
 import { usePreviewTools } from "./use-preview-tools";
+import { useAgentPrompts } from "./agent-prompts";
 
 /**
  * This component registers all calendar MCP tools.
  * It must be rendered inside CalendarProvider context.
  * It renders nothing but registers tools via useWebMCP hooks.
  *
- * Tools are organized into:
- * - Global tools: Available on all calendar views
- * - Smart tools: High-level actions that navigate and show results
- * - Legit tools: Version history, undo/rollback, multi-agent coordination
- * - Page-scoped tools: Only available on specific views
+ * ## Tool Categories (focused on Legit integration)
+ *
+ * ### Legit-Powered Tools (11 tools) - THE MAIN DEMO
+ * - **Multi-Agent Sandboxing**: calendar_start_sandbox, calendar_preview_changes,
+ *   calendar_commit_changes, calendar_list_agents, calendar_switch_branch
+ * - **Version History**: calendar_show_history, calendar_undo, calendar_compare_states
+ * - **Phantom Preview UI**: calendar_show_preview, calendar_hide_preview, calendar_get_preview_status
+ *
+ * ### Essential Calendar Tools (8 tools)
+ * - **CRUD**: calendar_list_events, calendar_update_event, calendar_delete_event
+ * - **Scheduling**: calendar_schedule_meeting, calendar_find_free_time
+ * - **State & Navigation**: calendar_get_state, calendar_filter_by_user, calendar_navigate
+ *
+ * Total: 19 tools (down from 42)
  */
 export function CalendarMCPTools() {
-  const pathname = usePathname();
+  // =========================================================================
+  // LEGIT-POWERED TOOLS (Core Demo)
+  // =========================================================================
 
-  // Register global tool categories (available everywhere)
-  useNavigationTools();
-  useEventTools();
-  useFilterTools();
-  useSettingsTools();
-
-  // Register smart/high-level tools (available everywhere)
-  useSmartTools();
-
-  // Register Legit-powered tools (version history & multi-agent)
+  // Version history and rollback (3 tools)
   useHistoryTools();
+
+  // Multi-agent coordination (5 tools)
   useAgentTools();
+
+  // Phantom event preview UI (3 tools)
   usePreviewTools();
 
-  return (
-    <>
-      {/* Page-scoped tools - only register on their respective views */}
-      {pathname === "/year-view" && <YearViewToolsRegistrar />}
-      {pathname === "/day-view" && <DayViewToolsRegistrar />}
-    </>
-  );
-}
+  // =========================================================================
+  // ESSENTIAL CALENDAR TOOLS
+  // =========================================================================
 
-// Separate components to ensure hooks are called at top level
-function YearViewToolsRegistrar() {
-  useYearViewTools();
-  return null;
-}
+  // Event CRUD operations (3 tools)
+  useEventTools();
 
-function DayViewToolsRegistrar() {
-  useDayViewTools();
+  // Calendar state, filtering, and navigation (3 tools)
+  useFilterTools();
+
+  // Scheduling tools (2 tools)
+  useSmartTools();
+
+  // =========================================================================
+  // AGENT PROMPTS (WebMCP-Legit Integration Guidance)
+  // =========================================================================
+
+  // Register prompts that help agents understand the demo
+  useAgentPrompts();
+
   return null;
 }

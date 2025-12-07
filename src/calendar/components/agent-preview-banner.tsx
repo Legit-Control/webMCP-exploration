@@ -24,9 +24,19 @@ export function AgentPreviewBanner() {
   const summary = usePendingChangesSummary();
 
   // Don't render if not in preview mode
-  if (!isPreviewMode || !summary) {
+  if (!isPreviewMode) {
     return null;
   }
+
+  // Use summary if available, otherwise show default state
+  const displaySummary = summary || {
+    added: 0,
+    modified: 0,
+    removed: 0,
+    total: 0,
+    hasChanges: false,
+    summary: "",
+  };
 
   return (
     <div
@@ -55,22 +65,22 @@ export function AgentPreviewBanner() {
 
         {/* Change summary badges */}
         <div className="flex items-center gap-2">
-          {summary.added > 0 && (
+          {displaySummary.added > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/50 dark:text-green-300">
-              +{summary.added} added
+              +{displaySummary.added} added
             </span>
           )}
-          {summary.modified > 0 && (
+          {displaySummary.modified > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-              ~{summary.modified} modified
+              ~{displaySummary.modified} modified
             </span>
           )}
-          {summary.removed > 0 && (
+          {displaySummary.removed > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300">
-              -{summary.removed} removed
+              -{displaySummary.removed} removed
             </span>
           )}
-          {!summary.hasChanges && (
+          {!displaySummary.hasChanges && (
             <span className="text-xs text-gray-500 dark:text-gray-400">
               No pending changes
             </span>
@@ -101,7 +111,7 @@ export function AgentPreviewBanner() {
           Exit Preview
         </Button>
 
-        {summary.hasChanges && (
+        {displaySummary.hasChanges && (
           <>
             <Button
               variant="outline"

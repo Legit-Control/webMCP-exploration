@@ -9,6 +9,7 @@ import { inter } from "@/styles/fonts";
 import { cn } from "@/lib/utils";
 
 import { Header } from "@/components/layout/header";
+import { Toaster } from "@/components/ui/toaster";
 
 import { getTheme } from "@/cookies/get";
 
@@ -36,6 +37,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <body>
         <Header />
         <Analytics />
+        <Toaster />
         <WebMCPProvider>
           <MyProvider>{children}</MyProvider>
         </WebMCPProvider>

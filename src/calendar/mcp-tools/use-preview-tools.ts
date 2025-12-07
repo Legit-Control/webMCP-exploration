@@ -20,7 +20,7 @@ export function usePreviewTools(): void {
   const {
     isPreviewMode,
     previewAgentId,
-    pendingChanges,
+    pendingChanges, // Still needed for calendar_get_preview_status
     loading,
     startPreview,
     stopPreview,
@@ -66,19 +66,18 @@ This lets users visually review AI-proposed changes before approving them.`,
     },
     handler: async ({ agentId }) => {
       try {
-        await startPreview(agentId);
-
-        // Wait a moment for state to update
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // startPreview now returns the computed changes directly,
+        // avoiding the stale closure issue with React state
+        const changes = await startPreview(agentId);
 
         return {
           success: true,
           message: `Now previewing changes from agent "${agentId}". Phantom events are now visible in the calendar.`,
           agentId,
           changes: {
-            added: pendingChanges.added.length,
-            modified: pendingChanges.modified.length,
-            removed: pendingChanges.removed.length,
+            added: changes.added.length,
+            modified: changes.modified.length,
+            removed: changes.removed.length,
           },
           tip: "Users can click Accept All or Reject All in the preview banner, or click individual phantom events to review them.",
         };

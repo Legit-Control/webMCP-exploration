@@ -14,11 +14,12 @@ import type { VariantProps } from "class-variance-authority";
 
 /**
  * Styles for phantom events (pending agent changes)
+ * Uses CSS animations defined in globals.css for pulsing glow effect
  */
 const phantomStyles: Record<TPhantomStatus, string> = {
-  added: "border-dashed border-2 border-green-500 bg-green-50/50 dark:bg-green-950/30 opacity-80",
-  modified: "border-dashed border-2 border-amber-500 bg-amber-50/50 dark:bg-amber-950/30 opacity-80",
-  removed: "border-dashed border-2 border-red-500 bg-red-50/50 dark:bg-red-950/30 opacity-50 line-through",
+  added: "border-dashed border-2 border-green-500 bg-green-50/50 dark:bg-green-950/30 phantom-added",
+  modified: "border-dashed border-2 border-amber-500 bg-amber-50/50 dark:bg-amber-950/30 phantom-modified",
+  removed: "border-dashed border-2 border-red-500 bg-red-50/50 dark:bg-red-950/30 opacity-50 line-through phantom-removed",
 };
 
 const eventBadgeVariants = cva(
