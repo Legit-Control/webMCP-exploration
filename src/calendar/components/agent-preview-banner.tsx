@@ -42,22 +42,21 @@ export function AgentPreviewBanner() {
     <div
       className={cn(
         "flex items-center justify-between gap-4 px-4 py-2",
-        "bg-gradient-to-r from-purple-100 via-blue-50 to-purple-100",
-        "dark:from-purple-950/50 dark:via-blue-950/30 dark:to-purple-950/50",
-        "border-b border-purple-200 dark:border-purple-800"
+        "bg-muted/50",
+        "border-b border-border"
       )}
     >
       {/* Left side: Agent info and change summary */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-full bg-purple-600 text-white">
+          <div className="flex size-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
             <Bot className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+            <p className="text-sm font-semibold text-foreground">
               Previewing AI Changes
             </p>
-            <p className="text-xs text-purple-700 dark:text-purple-300">
+            <p className="text-xs text-muted-foreground">
               Agent: {previewAgentId}
             </p>
           </div>
@@ -81,7 +80,7 @@ export function AgentPreviewBanner() {
             </span>
           )}
           {!displaySummary.hasChanges && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-muted-foreground">
               No pending changes
             </span>
           )}
@@ -95,7 +94,7 @@ export function AgentPreviewBanner() {
           size="sm"
           onClick={refreshPreview}
           disabled={loading}
-          className="text-purple-700 hover:bg-purple-200/50 hover:text-purple-900 dark:text-purple-300 dark:hover:bg-purple-800/50"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <RefreshCw className={cn("size-4", loading && "animate-spin")} />
           <span className="sr-only">Refresh</span>
@@ -105,7 +104,7 @@ export function AgentPreviewBanner() {
           variant="ghost"
           size="sm"
           onClick={stopPreview}
-          className="text-gray-700 hover:bg-gray-200/50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800/50"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <EyeOff className="mr-1.5 size-4" />
           Exit Preview

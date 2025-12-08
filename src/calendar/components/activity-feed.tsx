@@ -26,33 +26,33 @@ function ActivityItem({ entry }: { entry: ActivityEntry }) {
         entry.status === "pending" && "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30",
         entry.status === "success" && "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/30",
         entry.status === "error" && "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/30",
-        !entry.status && "border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-900/50"
+        !entry.status && "border-border bg-muted/50"
       )}
     >
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-purple-100 text-lg dark:bg-purple-900/50">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-lg">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          <span className="text-sm font-medium text-foreground">
             {label}
           </span>
           {entry.agentName && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
               <Bot className="size-3" />
               {entry.agentName}
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           {entry.description}
         </p>
         {entry.toolName && (
-          <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-500">
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
             {entry.toolName}
           </p>
         )}
-        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           {formatDistanceToNow(entry.timestamp, { addSuffix: true })}
         </p>
       </div>
@@ -71,16 +71,16 @@ export function ActivityFeed() {
   }
 
   return (
-    <div className="fixed right-4 top-20 z-50 w-96 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
+    <div className="fixed right-4 top-20 z-50 w-96 overflow-hidden rounded-lg border border-border bg-card shadow-xl">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-3">
         <div className="flex items-center gap-2">
-          <Activity className="size-4 text-purple-600" />
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+          <Activity className="size-4 text-foreground" />
+          <h3 className="font-semibold text-foreground">
             Agent Activity
           </h3>
           {activities.length > 0 && (
-            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
               {activities.length}
             </span>
           )}
@@ -91,7 +91,7 @@ export function ActivityFeed() {
               variant="ghost"
               size="sm"
               onClick={clearActivities}
-              className="size-8 p-0 text-gray-500 hover:text-gray-700"
+              className="size-8 p-0 text-muted-foreground hover:text-foreground"
             >
               <Trash2 className="size-4" />
               <span className="sr-only">Clear all</span>
@@ -101,7 +101,7 @@ export function ActivityFeed() {
             variant="ghost"
             size="sm"
             onClick={() => setOpen(false)}
-            className="size-8 p-0 text-gray-500 hover:text-gray-700"
+            className="size-8 p-0 text-muted-foreground hover:text-foreground"
           >
             <X className="size-4" />
             <span className="sr-only">Close</span>
@@ -113,7 +113,7 @@ export function ActivityFeed() {
       <ScrollArea className="h-[400px]">
         <div className="space-y-2 p-4">
           {activities.length === 0 ? (
-            <div className="py-8 text-center text-sm text-gray-500">
+            <div className="py-8 text-center text-sm text-muted-foreground">
               <Bot className="mx-auto mb-2 size-8 opacity-50" />
               <p>No agent activity yet</p>
               <p className="mt-1 text-xs">
@@ -147,8 +147,8 @@ export function ActivityFeedTrigger() {
       onClick={toggleOpen}
       className={cn(
         "relative gap-2",
-        isOpen && "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
-        hasRecent && "border-purple-300 dark:border-purple-700"
+        isOpen && "bg-secondary text-secondary-foreground",
+        hasRecent && "border-primary"
       )}
     >
       <Activity className={cn("size-4", hasRecent && "animate-pulse")} />
@@ -157,8 +157,8 @@ export function ActivityFeedTrigger() {
         <span className={cn(
           "absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full text-xs font-bold",
           hasRecent
-            ? "animate-pulse bg-purple-600 text-white"
-            : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+            ? "animate-pulse bg-primary text-primary-foreground"
+            : "bg-secondary text-secondary-foreground"
         )}>
           {activities.length > 9 ? "9+" : activities.length}
         </span>

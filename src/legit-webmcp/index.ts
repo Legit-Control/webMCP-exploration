@@ -11,7 +11,7 @@ export {
 
 // Multi-agent coordination
 export { useMultiAgentCoordination } from "@/legit-webmcp/use-multi-agent";
-export type { UseMultiAgentReturn, MergeResult } from "@/legit-webmcp/use-multi-agent";
+export type { UseMultiAgentReturn, MergeResult, CommitRecord } from "@/legit-webmcp/use-multi-agent";
 
 // Types
 export type {

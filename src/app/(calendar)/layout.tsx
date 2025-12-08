@@ -1,25 +1,20 @@
 "use client";
 
-import { Settings, GitBranch, History } from "lucide-react";
-
 import { LegitCalendarProvider } from "@/legit-webmcp";
 import { CalendarMCPTools } from "@/calendar/mcp-tools/CalendarMCPTools";
 import { AgentPreviewProvider } from "@/calendar/contexts/agent-preview-context";
 import { AgentPreviewBanner } from "@/calendar/components/agent-preview-banner";
 import { ActivityFeedProvider } from "@/calendar/contexts/activity-feed-context";
 import { ActivityFeed, ActivityFeedTrigger } from "@/calendar/components/activity-feed";
-import { TimeTravelSlider } from "@/calendar/components/time-travel-slider";
 import { DemoControls } from "@/calendar/components/demo-controls";
+import { BottomPanel } from "@/calendar/components/bottom-panel";
 
-import { ChangeBadgeVariantInput } from "@/calendar/components/change-badge-variant-input";
-import { ChangeVisibleHoursInput } from "@/calendar/components/change-visible-hours-input";
-import { ChangeWorkingHoursInput } from "@/calendar/components/change-working-hours-input";
+// New version control components
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  StatusBar,
+  GitPanel,
+  GitPanelTrigger,
+} from "@/calendar/components/version-control";
 import { useLegitContext, useLegitFile } from "@legit-sdk/react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getEvents, getUsers } from "@/calendar/requests";
@@ -38,7 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
   const { rollback, legitFs, head } = useLegitContext();
   const [isInitialized, setIsInitialized] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState<string>("main");
+  const [isGitPanelOpen, setIsGitPanelOpen] = useState(false);
 
   // Track if seeding is in progress to prevent double-seeding
   const seedingRef = useRef(false);
@@ -71,13 +66,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [eventsData, usersData, isInitialized, events.length, seedData]);
 
-  // Update current branch display
-  useEffect(() => {
-    if (legitFs) {
-      legitFs.getCurrentBranch().then(setCurrentBranch);
-    }
-  }, [legitFs, head]);
-
   const isLoading = !isInitialized || users.length === 0;
 
   // Always render the providers and MCP tools, just hide content visually while loading
@@ -106,49 +94,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {/* Activity feed panel */}
               <ActivityFeed />
 
+              {/* Git panel - full version control sidebar */}
+              <GitPanel
+                isOpen={isGitPanelOpen}
+                onClose={() => setIsGitPanelOpen(false)}
+              />
+
               {/* Demo controls */}
               <DemoControls />
 
               <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-8 py-4">
-                {/* Branch indicator with activity feed trigger */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <GitBranch className="size-3" />
-                    <span>Branch: {currentBranch}</span>
-                    {history && history.length > 0 && (
-                      <>
-                        <span className="mx-2">|</span>
-                        <History className="size-3" />
-                        <span>{history.length} commits</span>
-                      </>
-                    )}
-                  </div>
+                {/* Status bar with branch switcher and version control */}
+                <StatusBar />
+
+                {/* Action bar with activity feed and git panel triggers */}
+                <div className="flex items-center justify-end gap-2">
+                  <GitPanelTrigger
+                    onClick={() => setIsGitPanelOpen(!isGitPanelOpen)}
+                    isOpen={isGitPanelOpen}
+                  />
                   <ActivityFeedTrigger />
                 </div>
 
                 {children}
 
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="item-1" className="border-none">
-                    <AccordionTrigger className="flex-none gap-2 py-0 hover:no-underline">
-                      <div className="flex items-center gap-2">
-                        <Settings className="size-4" />
-                        <p className="text-base font-semibold">Calendar settings</p>
-                      </div>
-                    </AccordionTrigger>
-
-                    <AccordionContent>
-                      <div className="mt-4 flex flex-col gap-6">
-                        <ChangeBadgeVariantInput />
-                        <ChangeVisibleHoursInput />
-                        <ChangeWorkingHoursInput />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-
-                {/* Time Travel Slider */}
-                <TimeTravelSlider history={history || []} onRollback={rollback} />
+                {/* Integrated bottom panel with Time Travel and Settings */}
+                <BottomPanel history={history || []} onRollback={rollback} />
               </div>
             </>
           )}
