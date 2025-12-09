@@ -12,7 +12,7 @@ import {
   Eye,
   Loader2,
 } from "lucide-react";
-import { useLegitContext, useLegitFile } from "@legit-sdk/react";
+import { useLegitContext, useLegitFile } from "@legit-sdk/react/server";
 import { useMultiAgentCoordination } from "@/legit-webmcp";
 import { useAgentPreview } from "@/calendar/contexts/agent-preview-context";
 import { BranchSwitcher } from "./branch-switcher";

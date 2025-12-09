@@ -13,7 +13,7 @@ import { Toaster } from "@/components/ui/toaster";
 
 import { getTheme } from "@/cookies/get";
 
-import MyProvider from "@/app/MyProvider";
+import LegitProviderComponent from "@/app/LegitProviderComponent";
 import { WebMCPProvider } from "@/app/WebMCPProvider";
 import { WebMCPAgent } from "@/app/WebMCPAgent";
 
@@ -39,7 +39,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         <Analytics />
         <Toaster />
         <WebMCPProvider>
-          <MyProvider>{children}</MyProvider>
+          <LegitProviderComponent>{children}</LegitProviderComponent>
         </WebMCPProvider>
         <WebMCPAgent />
       </body>

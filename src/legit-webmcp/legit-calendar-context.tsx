@@ -7,7 +7,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { useLegitContext, useLegitFile } from "@legit-sdk/react";
+import { useLegitContext, useLegitFile } from "@legit-sdk/react/server";
 import type { HistoryItem } from "@legit-sdk/core";
 import type { IEvent, IUser } from "@/calendar/interfaces";
 import type {
@@ -95,7 +95,7 @@ export function LegitCalendarProvider({
   initialEvents,
   initialUsers,
 }: LegitCalendarProviderProps) {
-  const { legitFs } = useLegitContext();
+  const { legitFs, rollback } = useLegitContext();
 
   // Use Legit files for persistent state
   const {
@@ -186,20 +186,6 @@ export function LegitCalendarProvider({
       setSelectedDateState(date);
     }
   }, []);
-
-  // Legit-specific operations
-  const rollback = useCallback(
-    async (commitOid: string) => {
-      if (!legitFs) return;
-      const branch = await legitFs.getCurrentBranch();
-      await legitFs.promises.writeFile(
-        `/.legit/branches/${branch}/.legit/head`,
-        commitOid,
-        "utf8"
-      );
-    },
-    [legitFs]
-  );
 
   const getCurrentBranch = useCallback(async () => {
     if (!legitFs) return "main";

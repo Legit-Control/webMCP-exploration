@@ -1,7 +1,7 @@
 "use client";
 
 import { useWebMCP } from "@mcp-b/react-webmcp";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import { z } from "zod";
 import type { HistoryItem } from "@legit-sdk/core";
 import { CALENDAR_PATHS } from "@/legit-webmcp/types";

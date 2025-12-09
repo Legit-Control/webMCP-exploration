@@ -13,7 +13,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import { CALENDAR_PATHS } from "@/legit-webmcp/types";
 import type { IEvent } from "@/calendar/interfaces";
 import { Button } from "@/components/ui/button";

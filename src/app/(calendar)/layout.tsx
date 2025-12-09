@@ -15,7 +15,7 @@ import {
   GitPanel,
   GitPanelTrigger,
 } from "@/calendar/components/version-control";
-import { useLegitContext, useLegitFile } from "@legit-sdk/react";
+import { useLegitContext, useLegitFile } from "@legit-sdk/react/server";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getEvents, getUsers } from "@/calendar/requests";
 import type { IEvent, IUser } from "@/calendar/interfaces";

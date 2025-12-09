@@ -14,7 +14,7 @@ import {
   Edit3,
   Loader2,
 } from "lucide-react";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import { useMultiAgentCoordination } from "@/legit-webmcp";
 import { useAgentPreview } from "@/calendar/contexts/agent-preview-context";
 import { DiffViewer } from "./diff-viewer";

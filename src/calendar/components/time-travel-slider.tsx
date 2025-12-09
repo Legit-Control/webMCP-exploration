@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { History, RotateCcw, ChevronLeft, ChevronRight, GitCommit, User as UserIcon } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import type { HistoryItem } from "@legit-sdk/core";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

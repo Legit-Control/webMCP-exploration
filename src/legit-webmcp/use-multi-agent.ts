@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import type { AgentSession, AgentPreview } from "@/legit-webmcp/types";
 import { CALENDAR_PATHS } from "@/legit-webmcp/types";
 import type { IEvent } from "@/calendar/interfaces";

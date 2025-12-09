@@ -10,7 +10,7 @@ import {
   Home,
   RefreshCw,
 } from "lucide-react";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import { useMultiAgentCoordination } from "@/legit-webmcp";
 import { Button } from "@/components/ui/button";
 import {

@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
-    "@legit-sdk/core": "^0.2.0",
-    "@legit-sdk/react": "^0.2.0",
+    "@legit-sdk/core": "0.2.0",
+    "@legit-sdk/react": "0.2.8",
     "@mcp-b/embedded-agent": "^1.2.2",
     "@mcp-b/global": "^1.2.1",
     "@mcp-b/react-webmcp": "^0.2.3",

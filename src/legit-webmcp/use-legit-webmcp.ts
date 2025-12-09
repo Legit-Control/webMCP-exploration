@@ -1,7 +1,7 @@
 "use client";
 
 import { useWebMCP } from "@mcp-b/react-webmcp";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import type { z, ZodRawShape, ZodTypeAny } from "zod";
 import type { LegitToolContext } from "@/legit-webmcp/types";
 import type { HistoryItem } from "@legit-sdk/core";

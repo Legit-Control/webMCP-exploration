@@ -15,7 +15,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { useLegitContext, useLegitFile } from "@legit-sdk/react";
+import { useLegitContext, useLegitFile } from "@legit-sdk/react/server";
 import type { HistoryItem } from "@legit-sdk/core";
 import { useMultiAgentCoordination, type CommitRecord } from "@/legit-webmcp";
 import { Button } from "@/components/ui/button";

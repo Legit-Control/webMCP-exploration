@@ -7,7 +7,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import type { IEvent } from "@/calendar/interfaces";
 import { CALENDAR_PATHS } from "@/legit-webmcp/types";
 

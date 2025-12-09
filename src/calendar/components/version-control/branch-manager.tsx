@@ -15,7 +15,7 @@ import {
   Eye,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useLegitContext } from "@legit-sdk/react";
+import { useLegitContext } from "@legit-sdk/react/server";
 import { useMultiAgentCoordination } from "@/legit-webmcp";
 import { useAgentPreview } from "@/calendar/contexts/agent-preview-context";
 import { MergeRequestDialog } from "./merge-request";
